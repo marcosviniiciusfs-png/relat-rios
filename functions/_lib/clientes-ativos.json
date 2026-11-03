@@ -1,0 +1,149 @@
+{
+  "atualizadoEm": "2026-11-03",
+  "clientes": [
+    {
+      "slug": "benetoli",
+      "nomeRelatorio": "CA - BENETOLI",
+      "nicho": "consorcio",
+      "conta": "act_1456916661993088",
+      "nomeContaMeta": "CA - Benetoli",
+      "atendimento": false
+    },
+    {
+      "slug": "odonto-medic-curionopolis",
+      "nomeRelatorio": "ODONTO MEDIC - CURIONÓPOLIS",
+      "nicho": "clinica",
+      "conta": "act_892029782979632",
+      "nomeContaMeta": "CA - ODONTO MEDIC CURIONOPOLIS",
+      "atendimento": true
+    },
+    {
+      "slug": "clinica-tropical",
+      "nomeRelatorio": "CLÍNICA TROPICAL",
+      "nicho": "clinica",
+      "conta": "act_1438239248299389",
+      "nomeContaMeta": "CA - Clínica Tropical",
+      "atendimento": true
+    },
+    {
+      "slug": "cc-lions",
+      "nomeRelatorio": "CA - CC LIONS",
+      "nicho": "consorcio",
+      "conta": "act_4031758096959757",
+      "nomeContaMeta": "CA - CC Lions",
+      "atendimento": false
+    },
+    {
+      "slug": "connect",
+      "nomeRelatorio": "CA - CONNECT",
+      "nicho": "consorcio",
+      "conta": "act_1130730115332076",
+      "nomeContaMeta": "CA - Connect",
+      "atendimento": false
+    },
+    {
+      "slug": "dra-ana-julia",
+      "nomeRelatorio": "CA - DRA. ANA JÚLIA",
+      "nicho": "clinica",
+      "conta": "act_1271127441566844",
+      "nomeContaMeta": "CA - Dra Ana Júlia",
+      "atendimento": true
+    },
+    {
+      "slug": "dr-alan-andrade",
+      "nomeRelatorio": "CA - DR ALAN ANDRADE",
+      "nicho": "clinica",
+      "conta": "act_553256137798179",
+      "nomeContaMeta": "CA - Dr Alan Andrade",
+      "atendimento": false
+    },
+    {
+      "slug": "dra-alexia-lima",
+      "nomeRelatorio": "CA - DRA. ALEXIA LIMA",
+      "nicho": "clinica",
+      "conta": "act_231032979805764",
+      "nomeContaMeta": "CA- Dr Alexia Lima",
+      "atendimento": true
+    },
+    {
+      "slug": "dra-ana-paula-andrade",
+      "nomeRelatorio": "CA - DRA. ANA PAULA ANDRADE",
+      "nicho": "clinica",
+      "conta": "act_737580135519163",
+      "nomeContaMeta": "CA - DRA ANA PAULA",
+      "atendimento": false
+    },
+    {
+      "slug": "dra-adriana-colares",
+      "nomeRelatorio": "CA - DRA. ADRIANA COLARES",
+      "nicho": "clinica",
+      "conta": "act_1471334496984496",
+      "nomeContaMeta": "Dra Adriana Colares",
+      "atendimento": true
+    },
+    {
+      "slug": "dr-rodrigo-froes",
+      "nomeRelatorio": "DR. RODRIGO FRÓES",
+      "nicho": "clinica",
+      "conta": "act_1242063830209303",
+      "nomeContaMeta": "CA - Dr Rodrigo Froes",
+      "atendimento": true
+    },
+    {
+      "slug": "dra-luma-reis",
+      "nomeRelatorio": "DRA. LUMA REIS - TUCURUÍ/PA",
+      "nicho": "clinica",
+      "conta": "act_2292726388166442",
+      "nomeContaMeta": "CA - DRA LUMA REIS",
+      "atendimento": false
+    },
+    {
+      "slug": "investmais",
+      "nomeRelatorio": "CA - INVESTMAIS",
+      "nicho": "consorcio",
+      "conta": "act_816477354516979",
+      "nomeContaMeta": "CA - InvestMais",
+      "atendimento": false
+    },
+    {
+      "slug": "falcon",
+      "nomeRelatorio": "CONTA FALCON",
+      "nicho": "consorcio",
+      "conta": "act_4046043642298912",
+      "nomeContaMeta": "CONTA FALCON",
+      "atendimento": false
+    },
+    {
+      "slug": "nexor",
+      "nomeRelatorio": "CA - NEXOR",
+      "nicho": "consorcio",
+      "conta": "act_644789127746103",
+      "nomeContaMeta": "CA - Nexor",
+      "atendimento": false
+    },
+    {
+      "slug": "prado",
+      "nomeRelatorio": "PRADO EMPREENDIMENTOS",
+      "nicho": "consorcio",
+      "conta": "act_3067654003439695",
+      "nomeContaMeta": "Prado Empreendimentos",
+      "atendimento": false
+    },
+    {
+      "slug": "grupo-mb",
+      "nomeRelatorio": "CA - MB",
+      "nicho": "consorcio",
+      "conta": "act_1755572525217591",
+      "nomeContaMeta": "CA - MB",
+      "atendimento": false
+    },
+    {
+      "slug": "lr-representa",
+      "nomeRelatorio": "CA - LR REPRESENTA",
+      "nicho": "consorcio",
+      "conta": "act_562080109855003",
+      "nomeContaMeta": "CA - LR REPRESENTA",
+      "atendimento": false
+    }
+  ]
+}

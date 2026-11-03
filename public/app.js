@@ -15,22 +15,25 @@
     return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
   }
 
+  function addClient(parsed, fileName, nome, slugFixo) {
+    if (!parsed.rows.length) throw new Error('Nenhuma campanha com gasto nesse período.');
+    const slug = slugFixo || C.slug(nome);
+    const saved = state.saved[slug];
+    const cfg = Object.assign(C.defaultCfg(), saved && saved.cfg, saved && saved.cfg ? {} : { nome });
+    if (!cfg.nome) cfg.nome = nome;
+    cfg.periodo = ''; cfg.campanhasTxt = '';
+    const antigo = state.clients.findIndex(c => c.slug === slug);
+    const c = {
+      id: ++seq, fileName, parsed, cfg, slug, attRaw: '', attLayout: { card: null, tabela: null, ratio: { num: -1, den: -1, label: '' }, periodo: '' },
+      savedAtt: saved && saved.attLayout, texts: {}, edited: {},
+    };
+    if (antigo >= 0) { c.attRaw = state.clients[antigo].attRaw; state.clients[antigo] = c; } else state.clients.push(c);
+    recompute(c);
+  }
+
   async function addFile(file) {
-    try {
-      const parsed = C.parseRows(await sheetRows(file));
-      if (!parsed.rows.length) throw new Error('Nenhuma campanha com gasto nessa planilha.');
-      const nome = C.nomeDoArquivo(file.name);
-      const slug = C.slug(nome);
-      const saved = state.saved[slug];
-      const cfg = Object.assign(C.defaultCfg(), saved && saved.cfg, saved && saved.cfg ? {} : { nome });
-      if (!cfg.nome) cfg.nome = nome;
-      cfg.periodo = ''; cfg.campanhasTxt = '';
-      state.clients.push({
-        id: ++seq, fileName: file.name, parsed, cfg, slug, attRaw: '', attLayout: { card: null, tabela: null, ratio: { num: -1, den: -1, label: '' }, periodo: '' },
-        savedAtt: saved && saved.attLayout, texts: {}, edited: {},
-      });
-      recompute(state.clients[state.clients.length - 1]);
-    } catch (e) { setStatus(`${file.name}: ${e.message}`, true); console.error(e); }
+    try { addClient(C.parseRows(await sheetRows(file)), file.name, C.nomeDoArquivo(file.name)); }
+    catch (e) { setStatus(`${file.name}: ${e.message}`, true); console.error(e); }
   }
 
   async function addFiles(files) {
@@ -68,7 +71,7 @@
     const li = e.target.closest('li'); if (li) select(+li.dataset.i);
   });
 
-  function toggleBtns() { ['png', 'copy', 'save'].forEach(id => $('#' + id).disabled = !cur()); }
+  function toggleBtns() { ['png', 'copy', 'save', 'drive'].forEach(id => $('#' + id).disabled = !cur()); }
   function select(i) { state.cur = i; renderClients(); renderEditor(); toggleBtns(); draw(); }
 
   /* ---------- editor ---------- */
@@ -252,6 +255,74 @@
   fetch('/api/config').then(r => r.json()).then(j => { state.saved = j; }).catch(() => {
     try { state.saved = JSON.parse(localStorage.getItem('hurtz-rel-cfg') || '{}'); } catch { }
   });
+
+  /* ---------- Meta + Drive (só na versão hospedada, atrás de login) ---------- */
+  const meta = { clientes: [] };
+  const segunda = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7); return d; };
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+  async function initMeta() {
+    let r;
+    try { r = await fetch('/api/clientes'); } catch { return; }
+    if (r.status === 401) { $('#login').hidden = false; return; }
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return; // servidor local, sem integração
+    $('#login').hidden = true;
+    meta.clientes = await r.json();
+    const ini = segunda(), fim = new Date(ini); fim.setDate(fim.getDate() + 6);
+    $('#metaPanel').hidden = false;
+    $('#drive').hidden = false; $('#driveTodosL').hidden = false;
+    $('#mIni').value = iso(ini); $('#mFim').value = iso(fim);
+    $('#mLista').innerHTML = meta.clientes.map(c => `<label><input type="checkbox" data-slug="${c.slug}" checked> ${C.esc(c.nome)}${c.atendimento ? ' <em>(atendimento)</em>' : ''}</label>`).join('');
+  }
+  $('#loginBtn').onclick = async () => {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: $('#senha').value }) });
+    if (r.ok) { $('#senha').value = ''; $('#loginErr').textContent = ''; initMeta(); } else $('#loginErr').textContent = 'Senha incorreta';
+  };
+  $('#senha').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+  $('#mTodos').onclick = () => { const marcar = [...document.querySelectorAll('#mLista input')].some(i => !i.checked); document.querySelectorAll('#mLista input').forEach(i => { i.checked = marcar; }); };
+
+  $('#mPuxar').onclick = async () => {
+    const ini = $('#mIni').value, fim = $('#mFim').value;
+    const slugs = [...document.querySelectorAll('#mLista input:checked')].map(i => i.dataset.slug);
+    if (!ini || !fim || ini > fim) return setStatus('Confira as datas.', true);
+    if (!slugs.length) return setStatus('Marque ao menos um cliente.', true);
+    $('#mPuxar').disabled = true;
+    const falhas = [];
+    for (let k = 0; k < slugs.length; k++) {
+      setStatus(`Puxando da Meta ${k + 1}/${slugs.length}...`);
+      try {
+        const r = await fetch(`/api/meta?slug=${slugs[k]}&inicio=${ini}&fim=${fim}`);
+        if (r.status === 401) { $('#login').hidden = false; throw new Error('sessão expirada, entre de novo'); }
+        const j = await r.json();
+        if (j.erro) throw new Error(j.erro);
+        addClient(C.parseRows(j.rows), slugs[k] + '.meta', j.nome, slugs[k]);
+      } catch (e) { falhas.push(`${slugs[k]}: ${e.message}`); }
+    }
+    $('#mPuxar').disabled = false;
+    renderClients();
+    if (state.clients.length) select(Math.max(0, state.cur));
+    setStatus(falhas.length ? `Pronto, com ${falhas.length} problema(s): ${falhas.join(' | ')}` : `${slugs.length} cliente(s) puxados. Confira e baixe ou envie ao Drive.`, !!falhas.length);
+  };
+
+  async function enviarDrive(c) {
+    const pasta = `${c.parsed.start} a ${c.parsed.end}`;
+    const blob = await (await fetch(await toPng(c, ratio()))).blob();
+    const r = await fetch(`/api/drive?pasta=${encodeURIComponent(pasta)}&nome=${encodeURIComponent(fileNameOf(c))}`, { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob });
+    const j = await r.json();
+    if (j.erro) throw new Error(j.erro);
+    return j;
+  }
+  $('#drive').onclick = async () => {
+    const lista = $('#driveTodos').checked ? state.clients : [cur()];
+    let ult = null;
+    try {
+      for (let k = 0; k < lista.length; k++) { setStatus(`Enviando ao Drive ${k + 1}/${lista.length}...`); ult = await enviarDrive(lista[k]); }
+      setStatus(`Enviado ao Drive (${lista.length}).`);
+      $('#driveLink').href = ult.pasta; $('#driveLink').hidden = false;
+    } catch (e) { setStatus('Erro no Drive: ' + e.message, true); }
+  };
+  initMeta();
+
   // API usada pela CLI (gerar.js)
   window.__hurtz = {
     state, addFiles,
