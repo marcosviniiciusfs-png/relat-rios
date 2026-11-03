@@ -1,7 +1,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:#eef2f8;color:#0e1c59;font-size:14px}
-.top{display:flex;align-items:center;gap:16px;padding:10px 20px;background:#fff;border-bottom:1px solid #dfe5f0;height:56px}
+.top{display:flex;align-items:center;gap:20px;padding:10px 20px;background:#fff;border-bottom:1px solid #dfe5f0;height:56px}
 .top h1{font-size:18px;margin:0}
 .top .hint{color:#6f7fa6;font-size:13px}
 .layout{display:grid;grid-template-columns:250px 430px 1fr;height:calc(100% - 56px)}
