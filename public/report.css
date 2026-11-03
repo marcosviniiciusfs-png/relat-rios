@@ -95,3 +95,7 @@
 .rel .panel.dense .daily th,.rel .panel.dense .daily td{height:24px;font-size:14px}
 
 .rel [data-fitw]:not(.cliente){width:max-content}
+
+.rel .c4.total{text-align:left}
+.rel .c4.total .v,.rel .c4.total .u{text-align:left}
+.rel .row .s{line-height:1.1}

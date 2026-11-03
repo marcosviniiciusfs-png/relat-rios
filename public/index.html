@@ -10,54 +10,73 @@
 </head>
 <body>
 <header class="top">
-  <img src="akash-relatorios-logo.svg" alt="Akash Relatórios" height="36">
-  <span class="hint">Arraste o export do Gerenciador de Anúncios (.xlsx ou .csv). Um arquivo por cliente.</span>
+  <img class="brand" src="akash-relatorios-logo.svg" alt="Akash Relatórios">
+  <ol class="steps" aria-label="Etapas">
+    <li><b>1</b> Dados</li><li><b>2</b> Conferir</li><li><b>3</b> Exportar</li>
+  </ol>
 </header>
+
 <main class="layout">
   <aside class="side">
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
-      <strong>Solte as planilhas aqui</strong><span>ou clique para escolher (pode vários)</span>
-    </label>
-    <div id="metaPanel" class="mpanel" hidden>
-      <strong>Puxar da Meta</strong>
-      <div class="row2"><label class="f">De<input type="date" id="mIni"></label><label class="f">Até<input type="date" id="mFim"></label></div>
-      <button class="btn small" id="mTodos" type="button">Marcar / desmarcar todos</button>
+    <section class="box" id="metaPanel" hidden>
+      <h2>Puxar da Meta</h2>
+      <div class="dates">
+        <label class="f">De<input type="date" id="mIni"></label>
+        <label class="f">Até<input type="date" id="mFim"></label>
+      </div>
+      <div class="mhead"><span class="small">Clientes</span><button class="link" id="mTodos" type="button">marcar / desmarcar todos</button></div>
       <div id="mLista" class="mlista"></div>
-      <button class="btn primary" id="mPuxar" type="button">Puxar e montar relatórios</button>
-    </div>
-    <ul id="clients" class="clients"></ul>
-    <div class="bulk">
-      <label>Resolução
-        <select id="scale"><option value="1">1920 x 1080</option><option value="2">3840 x 2160</option></select>
+      <button class="btn primary wide" id="mPuxar" type="button">Puxar e montar relatórios</button>
+    </section>
+
+    <section class="box">
+      <h2>Planilhas</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+        <strong>Solte as planilhas aqui</strong>
+        <span>export do Gerenciador de Anúncios (.xlsx ou .csv), um arquivo por cliente</span>
       </label>
-      <button id="zip" class="btn" disabled>Baixar todos (.zip)</button>
-    </div>
+    </section>
+
+    <section class="box" id="clientsBox">
+      <h2>Relatórios <span class="count" id="count">0</span></h2>
+      <ul id="clients" class="clients"></ul>
+      <p class="small" id="clientsEmpty">Nada carregado ainda.</p>
+      <div class="bulk">
+        <label class="f">Resolução
+          <select id="scale"><option value="1">1920 x 1080 (padrão)</option><option value="2">3840 x 2160 (alta)</option></select>
+        </label>
+        <button id="zip" class="btn wide" disabled>Baixar todos (.zip)</button>
+      </div>
+    </section>
   </aside>
 
   <section class="editor" id="editor">
-    <p class="empty">Nenhum cliente carregado ainda.</p>
+    <div class="placeholder"><strong>Comece pelos dados</strong><p>Puxe da Meta ou solte uma planilha. Cada cliente vira um relatório editável.</p></div>
   </section>
 
   <section class="preview">
     <div class="actions">
       <button id="png" class="btn primary" disabled>Baixar PNG</button>
       <button id="copy" class="btn" disabled>Copiar imagem</button>
-      <button id="drive" class="btn" disabled hidden>Enviar ao Drive</button>
-      <label class="small" id="driveTodosL" hidden><input type="checkbox" id="driveTodos" checked> todos</label>
-      <a id="driveLink" class="small" target="_blank" hidden>abrir pasta</a>
-      <button id="save" class="btn" disabled title="Guarda grupos, papéis e opções deste cliente para as próximas semanas">Salvar config do cliente</button>
-      <span id="status" class="status"></span>
+      <span class="grp" id="driveGrp" hidden>
+        <button id="drive" class="btn" disabled>Enviar ao Drive</button>
+        <label class="chk"><input type="checkbox" id="driveTodos" checked> todos</label>
+        <a id="driveLink" target="_blank" rel="noopener" hidden>abrir pasta</a>
+      </span>
+      <button id="save" class="btn ghost" disabled title="Guarda grupos, papéis dos indicadores e layout de atendimento deste cliente">Salvar config do cliente</button>
     </div>
+    <div id="status" class="status" role="status" hidden></div>
     <div class="stagewrap" id="stagewrap"><div class="stage" id="stage"></div></div>
   </section>
 </main>
+
 <div id="login" class="login" hidden>
-  <div class="box"><img src="akash-relatorios-logo.svg" alt="Akash Relatórios" height="36">
+  <div class="loginbox"><img src="akash-relatorios-logo.svg" alt="Akash Relatórios">
     <p>Digite a senha para continuar.</p>
     <input type="password" id="senha" autocomplete="current-password" placeholder="Senha">
-    <button class="btn primary" id="loginBtn" type="button">Entrar</button>
-    <span id="loginErr" class="status"></span></div>
+    <button class="btn primary wide" id="loginBtn" type="button">Entrar</button>
+    <span id="loginErr" class="err"></span></div>
 </div>
 <div id="export" style="position:fixed;left:-10000px;top:0"></div>
 

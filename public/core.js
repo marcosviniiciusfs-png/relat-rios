@@ -42,7 +42,7 @@
   const DEFAULT_KEYWORDS = [
     'REMARKETING|remarketing',
     'IMÓVEL|imovel|imoveis',
-    'VEÍCULO|veiculo|carro|auto',
+    'VEÍCULO|veiculo|carro',
     'CAMINHÃO|caminhao',
     'MAQUINÁRIO|maquinario',
     'VAGA|vaga',
@@ -132,7 +132,7 @@
     s = s.replace(/^(CA) (?=\S)/i, 'CA - ');
     return s.toUpperCase();
   }
-  const titleCase = s => s.toLowerCase().replace(/(^|\s|\.)([a-zà-ú])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(De|Da|Do|Dos|Das|E)\b/g, x => x.toLowerCase());
+  const titleCase = s => s.toLowerCase().replace(/(^|\s|\.)([a-zà-ú])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(De|Da|Do|Dos|Das|E)\b/g, x => x.toLowerCase()).replace(/\b(Lr|Mb|Cc|Ca|Amx|Obm)\b/g, x => x.toUpperCase());
   function nomeTextoDe(nome) { return titleCase(nome.replace(/^CA\s*-\s*/i, '').replace(/^CONTA\s+/i, 'conta ')).replace(/^(Dra?)\s/, '$1. '); }
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -237,8 +237,115 @@
     return m;
   }
 
-  /* ---------- atendimento (colado do Excel/Sheets ou CSV) ---------- */
-  function parseAtendimento(text) {
+  /* ---------- atendimento ---------- */
+  const MESES_NUM = { janeiro: 1, fevereiro: 2, marco: 3, abril: 4, maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12 };
+  const isoDe = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const ddmm = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const addDia = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const periodoDe = (isos) => {
+    if (!isos.length) return '';
+    const f = isos[0], l = isos[isos.length - 1];
+    if (f === l) return ddmm(f);
+    return f.slice(5, 7) === l.slice(5, 7) ? `${f.slice(8, 10)} a ${ddmm(l)}` : `${ddmm(f)} a ${ddmm(l)}`;
+  };
+  const chaveRotulo = l => norm(l).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').map(w => (w.length > 3 ? w.replace(/s$/, '') : w)).join(' ');
+  const cap1 = s2 => s2.charAt(0).toUpperCase() + s2.slice(1);
+
+  /* Lê texto bruto: conversa exportada do WhatsApp (iOS, Android ou o .md do Cérebro) ou relatórios colados.
+     Procura mensagens "Relatório diário DD/MM" e as linhas "Pacientes: 12", "Consultas 3" que vêm depois. */
+  function parseAtendimentoBruto(text, range) {
+    range = range || {};
+    const avisos = [];
+    const anoBase = range.ini ? +range.ini.slice(0, 4) : new Date().getFullYear();
+    const lines = String(text || '').replace(/[\u200e\u200f\u202a-\u202e]/g, '').split(/\r?\n/);
+    const msgStart = /^(?:\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]+\d{1,2}:\d{2}(?::\d{2})?\]?\s*(?:-\s*)?|\[\d{1,2}:\d{2}(?::\d{2})?\]\s*)(?:\*\*|__)?([^:*_]{1,70}?):(?:\*\*|__)?\s?(.*)$/;
+    const metric = /^[^\p{L}\d]*(\p{L}[\p{L}\p{M}\s\/().'’&-]*?)\s*[:：\-–]?\s*\/?\s*(\d{1,5})\s*$/u;
+    let chat = null; // data da conversa em ISO
+    let cur = null;
+    const reports = [];
+
+    const resolveAno = y => (y ? (+y < 100 ? 2000 + +y : +y) : (chat ? +chat.slice(0, 4) : anoBase));
+
+    function novoRelatorio(L) {
+      let dates = [], rotulo = null, agrupado = false;
+      const todas = [...L.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+      const lista = /(\d{1,2}(?:\s*(?:,|e|a|à|-)\s*\d{1,2})+)\s*\/\s*(\d{1,2})(?:\/(\d{2,4}))?/.exec(L);
+      const p2 = n => String(n).padStart(2, '0');
+      if (todas.length >= 2) {
+        const f = todas[0], l = todas[todas.length - 1];
+        dates = [isoDe(resolveAno(l[3]), +l[2], +l[1])];
+        rotulo = `${p2(f[1])}/${p2(f[2])} a ${p2(l[1])}/${p2(l[2])}`; agrupado = true;
+      } else if (lista) {
+        const dias = lista[1].split(/\s*(?:,|e|a|à|-)\s*/).map(Number), y = resolveAno(lista[3]);
+        dates = [isoDe(y, +lista[2], dias[dias.length - 1])];
+        rotulo = `${dias[0]} a ${dias[dias.length - 1]}/${p2(lista[2])}`; agrupado = true;
+      } else if (todas.length === 1) {
+        const mm = todas[0];
+        dates = [isoDe(resolveAno(mm[3]), +mm[2], +mm[1])];
+      } else if (chat) dates = [/ontem/i.test(L) ? addDia(chat, -1) : chat];
+      if (!dates.length) { avisos.push('Relatório sem data identificável foi ignorado.'); return null; }
+      return { iso: dates[0], rotulo, agrupado, metrics: [], ordem: reports.length };
+    }
+
+    function processa(raw) {
+      const L = raw.replace(/[*_~]/g, '').trim();
+      if (!L) return;
+      if (/relat[óo]rio/i.test(L)) {
+        const r = novoRelatorio(L);
+        cur = r; if (r) reports.push(r);
+        return;
+      }
+      if (!cur) return;
+      const m = metric.exec(L);
+      if (m) { cur.metrics.push([m[1].trim(), parseInt(m[2], 10)]); return; }
+      if (/:\s*$/.test(L) || !/\p{L}/u.test(L)) return; // título de seção ou enfeite
+      if (cur.metrics.length) cur = null; // texto livre depois das métricas encerra o relatório
+    }
+
+    for (const raw of lines) {
+      const h = /^#{1,3}\s*(\d{1,2}) de (\p{L}+) de (\d{4})/u.exec(raw.trim());
+      if (h) { const mes = MESES_NUM[norm(h[2])]; if (mes) chat = isoDe(+h[3], mes, +h[1]); cur = null; continue; }
+      const ms = msgStart.exec(raw.trim().replace(/^\*\*|\*\*$/g, m => m));
+      if (ms) {
+        cur = null;
+        if (ms[1]) chat = isoDe(resolveAno(ms[3]), +ms[2], +ms[1]);
+        processa(ms[5]);
+      } else processa(raw);
+    }
+
+    if (!reports.length) return null;
+
+    // um relatório por dia (o último vence); filtra pelo período
+    const porDia = new Map();
+    let fora = 0, sobrescritos = 0;
+    for (const r of reports) {
+      if (!r.metrics.length) continue;
+      if ((range.ini && r.iso < range.ini) || (range.fim && r.iso > range.fim)) { fora++; continue; }
+      const k = r.iso + '|' + (r.rotulo || '');
+      if (porDia.has(k)) sobrescritos++;
+      porDia.set(k, r);
+    }
+    const dias = [...porDia.values()].sort((a, b) => a.iso.localeCompare(b.iso) || a.ordem - b.ordem);
+    if (!dias.length) {
+      avisos.push(`Achei ${reports.length} relatório(s), mas nenhum dentro do período${range.ini ? ` ${ddmm(range.ini)} a ${ddmm(range.fim || range.ini)}` : ''}.`);
+      return { days: [], rows: [], periodo: '', avisos, bruto: true };
+    }
+    const rotulos = new Map(); // chave -> rótulo exibido (ordem de aparição)
+    dias.forEach(d => d.metrics.forEach(([l]) => { const k = chaveRotulo(l); if (!rotulos.has(k)) rotulos.set(k, cap1(l.replace(/\s+/g, ' ').trim())); }));
+    const rows = [...rotulos.entries()].map(([k, label]) => {
+      const values = dias.map(d => { let v = 0; d.metrics.forEach(([l, n]) => { if (chaveRotulo(l) === k) v = n; }); return v; });
+      return { label, values, total: values.reduce((a, b) => a + b, 0) };
+    });
+    const daysLbl = dias.map(d => d.rotulo || ddmm(d.iso));
+    dias.filter(d => d.agrupado).forEach(d => avisos.push(`Relatório agrupado (${d.rotulo}) entrou como uma coluna só, sem divisão por dia.`));
+    if (fora) avisos.push(`${fora} relatório(s) fora do período foram ignorados.`);
+    if (sobrescritos) avisos.push(`${sobrescritos} dia(s) tinham relatório repetido; valeu o último.`);
+    avisos.unshift(`${dias.length} dia(s) lido(s) de ${periodoDe(dias.map(d => d.iso))}.`);
+    return { days: daysLbl, rows, periodo: periodoDe(dias.map(d => d.iso)), avisos, bruto: true };
+  }
+
+  /* Tabela colada do Excel/Sheets ou CSV (1ª linha = dias, 1ª coluna = indicadores) */
+  function parseAtendimentoTabela(text) {
     const lines = String(text || '').split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return null;
     const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : ',';
@@ -264,7 +371,19 @@
       const [fd, fm] = f.split('/'), [ld, lm] = l.split('/');
       periodo = days.length === 1 ? f : fm === lm ? `${fd} a ${ld}/${lm}` : `${f} a ${l}`;
     }
-    return { days, rows, periodo };
+    return { days, rows, periodo, avisos: [] };
+  }
+
+  /* Entrada única: tabela (se a 1ª linha tem várias datas separadas por tab/;/,) ou texto bruto */
+  function parseAtendimento(text, range) {
+    const t = String(text || '').trim();
+    if (!t) return null;
+    const primeira = t.split(/\r?\n/).find(l => l.trim()) || '';
+    const celulas = primeira.split(/\t|;|,/).map(c => c.trim());
+    const datas = celulas.filter(c => /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(c)).length;
+    const colunaDatas = t.split(/\r?\n/).slice(1).filter(l => l.trim()).length > 0 && t.split(/\r?\n/).slice(1).filter(l => l.trim()).every(l => /^\d{1,2}\/\d{1,2}(\/\d{2,4})?[\t;,]/.test(l.trim()));
+    if ((datas >= 2 && /[\t;,]/.test(primeira)) || colunaDatas) return parseAtendimentoTabela(t);
+    return parseAtendimentoBruto(t, range);
   }
 
   /* ---------- textos ---------- */
@@ -277,6 +396,7 @@
       resumo = `${nomeT} somou ${n0(t.results)} resultados: ${n0(t.leads)} leads de formulário e ${n0(t.conversas)} conversas, com investimento de ${money(t.spendPrin)} e custo de ${money(t.cost)}.`;
     } else {
       resumo = `${nomeT} gerou ${n0(t.results)} ${u.plural} com investimento de ${money(t.spendPrin)}. O custo médio ficou em ${money(t.cost)} por ${u.singular}.`;
+      if (t.spendAll - t.spendPrin > 0.5) resumo += ` Somando as outras campanhas, o valor gasto total foi de ${money(t.spendAll)}.`;
     }
     if (m.outros.length) {
       const o = m.outros[0];
@@ -348,5 +468,5 @@
     return { days: att.days, rows, periodo: layout.periodo || att.periodo, ratio };
   }
 
-  return { norm, num, nf, money, esc, slug, titleCase, parseRows, buildModel, defaultCfg, guessGroup, periodoTexto, nomeDoArquivo, nomeTextoDe, parseAtendimento, prepararAtendimento, gerarTextos, indicatorByKind, DEFAULT_KEYWORDS };
+  return { norm, num, nf, money, esc, slug, titleCase, parseRows, buildModel, defaultCfg, guessGroup, periodoTexto, nomeDoArquivo, nomeTextoDe, parseAtendimento, parseAtendimentoBruto, prepararAtendimento, gerarTextos, indicatorByKind, DEFAULT_KEYWORDS };
 });

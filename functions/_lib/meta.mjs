@@ -3,9 +3,17 @@ const API = 'https://graph.facebook.com/v21.0';
 
 const num = v => Number(v || 0);
 
+const CONV = 'onsite_conversion.messaging_conversation_started_7d';
 function resultado(d) {
   const r = (d.results || [])[0];
-  if (r && r.values && r.values[0]) return { indicador: r.indicator, valor: num(r.values[0].value) };
+  if (r && r.values && r.values[0]) {
+    // campanha de mensagens otimizada para engajamento/cliques: o que importa são as conversas iniciadas
+    const conv = num((d.actions || []).find(x => x.action_type === CONV)?.value);
+    if (conv && /post_engagement|link_click|landing_page_view/.test(r.indicator) && /mensag|whats|wpp|zap|conversa/i.test(d.campaign_name || '')) {
+      return { indicador: 'actions:' + CONV, valor: conv };
+    }
+    return { indicador: r.indicator, valor: num(r.values[0].value) };
+  }
   // campanhas de formulário instantâneo não trazem "results": usa as ações
   const a = t => num((d.actions || []).find(x => x.action_type === t)?.value);
   const lead = a('lead');

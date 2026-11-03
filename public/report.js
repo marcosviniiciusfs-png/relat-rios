@@ -50,16 +50,24 @@
     const att = m.fourth === 'atendimento' ? m.att : (m.att || null);
     const showDaily = m.fourth === 'atendimento' && m.att && m.att.days.length;
     const dailyRows = showDaily ? m.att.rows.filter(r => r.tabela !== false) : [];
-    const n = Math.max(m.groups.length, 1);
+    // muitas linhas ficam ilegíveis: agrupa as menores em "OUTROS"
+    const maxLinhas = showDaily ? 4 : 6;
+    let grupos = m.groups;
+    if (grupos.length > maxLinhas) {
+      const topo = grupos.slice(0, maxLinhas - 1), resto = grupos.slice(maxLinhas - 1);
+      const res = resto.reduce((a, g) => a + g.results, 0), gas = resto.reduce((a, g) => a + g.spend, 0);
+      grupos = topo.concat([{ label: `OUTROS (${resto.length})`, sub: '', results: res, spend: gas, cost: res ? gas / res : 0 }]);
+    }
+    const n = Math.max(grupos.length, 1);
     const dailyH = showDaily ? 34 + 24 * (dailyRows.length + 1) : 0;
     const base = showDaily ? 405 - 58 - 38 - dailyH : 405 - 76 - 46;
     let nota = texts.notaTabela;
     const gap = showDaily ? 4 : 6;
     let rh = Math.floor((base - (nota ? 40 : 0)) / n) - gap;
     if (rh < 34 && nota) { nota = ''; rh = Math.floor(base / n) - gap; }
-    rh = Math.max(24, Math.min(64, rh));
-    const nf1 = Math.max(14, Math.min(22, Math.round(rh * 0.36))), vf = Math.max(16, Math.min(27, Math.round(rh * 0.43)));
-    const rows = m.groups.map(g => `<div class="row"><div><span class="n">${esc(C.titleCase(g.label).replace(/\b(Ca|Mb)\b/g, x => x.toUpperCase()))}</span>${g.sub && rh >= 44 ? `<span class="s">${esc(g.sub)}</span>` : ''}</div><div>${nf(g.results)}</div><div>${g.results ? money(g.cost) : '-'}</div></div>`).join('');
+    rh = Math.max(30, Math.min(64, rh));
+    const nf1 = Math.max(16, Math.min(22, Math.round(rh * 0.42))), vf = Math.max(16, Math.min(27, Math.round(rh * 0.43)));
+    const rows = grupos.map(g => `<div class="row"><div><span class="n">${esc(C.titleCase(g.label).replace(/\b(Ca|Mb)\b/g, x => x.toUpperCase()))}</span>${g.sub && rh >= 40 ? `<span class="s">${esc(g.sub)}</span>` : ''}</div><div>${nf(g.results)}</div><div>${g.results ? money(g.cost) : '-'}</div></div>`).join('');
     const daily = showDaily ? `<div class="daily"><h4>Atendimento por dia · ${esc(m.att.periodo.replace(' a ', ' a '))}</h4><table><tr><th>Dia</th>${m.att.days.map(d => `<th>${esc(d)}</th>`).join('')}</tr>${dailyRows.map((r, i) => `<tr><td>${esc(r.label)}</td>${r.values.map(v => `<td>${nf(v)}</td>`).join('')}</tr>`).join('')}</table></div>` : '';
     return `<div class="panel${showDaily ? ' dense' : ''}"><div class="ph"><div class="circ">${ICON.camadas}</div><h2>Desempenho por grupo de campanha</h2></div><div class="th"><span>Grupo de campanha</span><span>${esc(u.rotulo)}</span><span>CUSTO/RESULT.</span></div><div class="rows" style="--rh:${rh}px;--nf:${nf1}px;--vf:${vf}px">${rows}</div>${nota ? `<div class="nota-t">${esc(nota)}</div>` : ''}${daily}</div>`;
   }

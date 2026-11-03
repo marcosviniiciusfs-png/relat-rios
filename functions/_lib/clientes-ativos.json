@@ -15,7 +15,11 @@
       "nicho": "clinica",
       "conta": "act_892029782979632",
       "nomeContaMeta": "CA - ODONTO MEDIC CURIONOPOLIS",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "TESTE VS10|vs10",
+        "APARELHO|aparelho"
+      ]
     },
     {
       "slug": "clinica-tropical",
@@ -23,7 +27,10 @@
       "nicho": "clinica",
       "conta": "act_1438239248299389",
       "nomeContaMeta": "CA - Clínica Tropical",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "APARELHO|aparelho"
+      ]
     },
     {
       "slug": "cc-lions",
@@ -47,7 +54,12 @@
       "nicho": "clinica",
       "conta": "act_1271127441566844",
       "nomeContaMeta": "CA - Dra Ana Júlia",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "CAPTAÇÃO DE LEADS|captacao|leads",
+        "IMPLANTE|implante",
+        "APARELHO|aparelho"
+      ]
     },
     {
       "slug": "dr-alan-andrade",
@@ -55,7 +67,14 @@
       "nicho": "clinica",
       "conta": "act_553256137798179",
       "nomeContaMeta": "CA - Dr Alan Andrade",
-      "atendimento": false
+      "atendimento": false,
+      "grupos": [
+        "PERINEOPLASTIA|perineo",
+        "NINFOPLASTIA|ninfo",
+        "IMPLANTE|implante",
+        "REPOSIÇÃO HORMONAL|reposicao",
+        "DEPILAÇÃO A LASER|depilacao"
+      ]
     },
     {
       "slug": "dra-alexia-lima",
@@ -63,7 +82,15 @@
       "nicho": "clinica",
       "conta": "act_231032979805764",
       "nomeContaMeta": "CA- Dr Alexia Lima",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "RECONHECIMENTO|trafego ig|reconhecimento",
+        "PACI MOD FORTALEZA|paci mod",
+        "FORTALEZA|fortaleza",
+        "BELÉM|belem",
+        "MARABÁ/PARAUAPEBAS|maraba",
+        "SÃO LUÍS|sao luis"
+      ]
     },
     {
       "slug": "dra-ana-paula-andrade",
@@ -79,7 +106,11 @@
       "nicho": "clinica",
       "conta": "act_1471334496984496",
       "nomeContaMeta": "Dra Adriana Colares",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "MINI LIPO|mini lipo",
+        "NINFOPLASTIA|ninfo"
+      ]
     },
     {
       "slug": "dr-rodrigo-froes",
@@ -87,7 +118,14 @@
       "nicho": "clinica",
       "conta": "act_1242063830209303",
       "nomeContaMeta": "CA - Dr Rodrigo Froes",
-      "atendimento": true
+      "atendimento": true,
+      "grupos": [
+        "REMARKETING|remarketing",
+        "RECONHECIMENTO|reconhecimento",
+        "FACETAS EM RESINA|facetas",
+        "LENTES DE PORCELANA|lentes",
+        "IMPLANTES|implante"
+      ]
     },
     {
       "slug": "dra-luma-reis",
@@ -95,7 +133,12 @@
       "nicho": "clinica",
       "conta": "act_2292726388166442",
       "nomeContaMeta": "CA - DRA LUMA REIS",
-      "atendimento": false
+      "atendimento": false,
+      "grupos": [
+        "ESTÁTICOS|estatico",
+        "BLEFAROPLASTIA|blefaro",
+        "RECONHECIMENTO|reconhecimento"
+      ]
     },
     {
       "slug": "investmais",

@@ -3,10 +3,12 @@
   const $ = s => document.querySelector(s);
   const stage = $('#stage'), editor = $('#editor');
   const state = { clients: [], cur: -1, saved: {} };
+  const meta = { clientes: [] };
   let seq = 0;
   const TEXT_KEYS = ['resumo', 'bom', 'melhorar', 'nota', 'notaTabela'];
   const cur = () => state.clients[state.cur];
-  const setStatus = (t, err) => { const s = $('#status'); s.textContent = t || ''; s.style.color = err ? '#c0210a' : ''; };
+  const setStatus = (t, err) => { const s = $('#status'); s.hidden = !t; s.textContent = t || ''; s.classList.toggle('err', !!err); };
+  const curto = nome => C.titleCase(String(nome).replace(/^CA\s*-\s*/i, '').replace(/^CONTA\s+/i, ''));
 
   /* ---------- arquivos ---------- */
   async function sheetRows(file) {
@@ -22,12 +24,15 @@
     const cfg = Object.assign(C.defaultCfg(), saved && saved.cfg, saved && saved.cfg ? {} : { nome });
     if (!cfg.nome) cfg.nome = nome;
     cfg.periodo = ''; cfg.campanhasTxt = '';
+    const mc = meta.clientes.find(x => x.slug === slug);
+    if (mc && mc.grupos && !(saved && saved.cfg && saved.cfg.keywords)) cfg.keywords = mc.grupos.concat(C.DEFAULT_KEYWORDS);
     const antigo = state.clients.findIndex(c => c.slug === slug);
     const c = {
-      id: ++seq, fileName, parsed, cfg, slug, attRaw: '', attLayout: { card: null, tabela: null, ratio: { num: -1, den: -1, label: '' }, periodo: '' },
+      id: ++seq, fileName, parsed, cfg, slug, attRaw: '', attRange: { ini: '', fim: '' },
+      attLayout: { card: null, tabela: null, ratio: { num: -1, den: -1, label: '' }, periodo: '' },
       savedAtt: saved && saved.attLayout, texts: {}, edited: {},
     };
-    if (antigo >= 0) { c.attRaw = state.clients[antigo].attRaw; state.clients[antigo] = c; } else state.clients.push(c);
+    if (antigo >= 0) { c.attRaw = state.clients[antigo].attRaw; c.attRange = state.clients[antigo].attRange; state.clients[antigo] = c; } else state.clients.push(c);
     recompute(c);
   }
 
@@ -37,17 +42,19 @@
   }
 
   async function addFiles(files) {
+    const antes = state.clients.length;
     for (const f of files) await addFile(f);
     renderClients();
-    if (state.cur < 0 && state.clients.length) select(0);
-    else if (state.clients.length) select(state.clients.length - files.length >= 0 ? state.clients.length - 1 : 0);
+    if (state.clients.length > antes) select(state.clients.length - 1);
+    else if (state.cur < 0 && state.clients.length) select(0);
   }
 
   /* ---------- cálculo ---------- */
+  const rangeOf = c => ({ ini: c.attRange.ini || c.parsed.start, fim: c.attRange.fim || c.parsed.end });
   function recompute(c) {
-    c.attParsed = c.attRaw.trim() ? C.parseAtendimento(c.attRaw) : null;
-    if (c.attParsed && c.attLayout.card === null && c.savedAtt) applySavedAtt(c);
-    const att = c.attParsed ? C.prepararAtendimento(c.attParsed, c.attLayout) : null;
+    c.attParsed = c.attRaw.trim() ? C.parseAtendimento(c.attRaw, rangeOf(c)) : null;
+    if (c.attParsed && c.attParsed.rows.length && c.attLayout.card === null && c.savedAtt) applySavedAtt(c);
+    const att = c.attParsed && c.attParsed.rows.length ? C.prepararAtendimento(c.attParsed, c.attLayout) : null;
     c.model = C.buildModel(c.parsed, c.cfg, att);
     c.auto = C.gerarTextos(c.model);
     TEXT_KEYS.forEach(k => { if (!c.edited[k]) c.texts[k] = c.auto[k]; });
@@ -62,16 +69,25 @@
 
   /* ---------- lista de clientes ---------- */
   function renderClients() {
-    $('#clients').innerHTML = state.clients.map((c, i) => `<li data-i="${i}" class="${i === state.cur ? 'on' : ''}"><span>${C.esc(c.cfg.nome)}</span><span class="x" data-x="${i}" title="remover">×</span></li>`).join('');
+    $('#clients').innerHTML = state.clients.map((c, i) => `<li data-i="${i}" class="${i === state.cur ? 'on' : ''}" title="${C.esc(c.cfg.nome)}"><span class="nm">${C.esc(curto(c.cfg.nome))}</span>${c.attParsed && c.attParsed.rows.length ? '<i class="badge">A</i>' : ''}<span class="x" data-x="${i}" title="remover">×</span></li>`).join('');
+    $('#count').textContent = state.clients.length;
+    $('#clientsEmpty').hidden = state.clients.length > 0;
     $('#zip').disabled = !state.clients.length;
   }
   $('#clients').addEventListener('click', e => {
     const x = e.target.closest('[data-x]');
-    if (x) { state.clients.splice(+x.dataset.x, 1); state.cur = Math.min(state.cur, state.clients.length - 1); renderClients(); state.cur >= 0 ? select(state.cur) : (editor.innerHTML = '<p class="empty">Nenhum cliente carregado ainda.</p>', stage.innerHTML = '', toggleBtns()); return; }
+    if (x) {
+      state.clients.splice(+x.dataset.x, 1);
+      state.cur = Math.min(state.cur, state.clients.length - 1);
+      renderClients();
+      if (state.cur >= 0) select(state.cur);
+      else { editor.innerHTML = '<div class="placeholder"><strong>Comece pelos dados</strong><p>Puxe da Meta ou solte uma planilha.</p></div>'; stage.innerHTML = ''; toggleBtns(); }
+      return;
+    }
     const li = e.target.closest('li'); if (li) select(+li.dataset.i);
   });
 
-  function toggleBtns() { ['png', 'copy', 'save', 'drive'].forEach(id => $('#' + id).disabled = !cur()); }
+  function toggleBtns() { ['png', 'copy', 'save', 'drive'].forEach(id => { $('#' + id).disabled = !cur(); }); }
   function select(i) { state.cur = i; renderClients(); renderEditor(); toggleBtns(); draw(); }
 
   /* ---------- editor ---------- */
@@ -84,56 +100,81 @@
     const kinds = [...new Set(c.parsed.rows.map(r => r.kind))];
     const rowsHtml = c.parsed.rows.map(r => {
       const g = cfg.groups[r.name] || C.guessGroup(r.name, cfg.keywords);
-      return `<tr><td class="n" title="${C.esc(r.name)}">${C.esc(r.name)}</td><td>${C.nf(r.results)}</td><td>${C.nf(r.spend, 2)}</td><td><input type="text" data-g="${C.esc(r.name)}" value="${C.esc(g)}"></td></tr>`;
+      return `<tr><td class="n" title="${C.esc(r.name)}">${C.esc(r.name)}</td><td class="num">${C.nf(r.results)}</td><td class="num">${C.nf(r.spend, 2)}</td><td><input type="text" data-g="${C.esc(r.name)}" value="${C.esc(g)}"></td></tr>`;
     }).join('');
     editor.innerHTML = `
-      <details open><summary>Cabeçalho</summary><div>
+      <details open><summary>Cabeçalho</summary><div class="pad">
         <label class="f">Nome no relatório<input type="text" data-k="nome" value="${C.esc(cfg.nome)}"></label>
-        <label class="f">Nome nos textos (ex.: Dra. Alexia Lima)<input type="text" data-k="nomeTexto" value="${C.esc(cfg.nomeTexto)}" placeholder="${C.esc(m.nomeTexto)}"></label>
-        <label class="f">Período<input type="text" data-k="periodo" value="${C.esc(cfg.periodo)}" placeholder="${C.esc(m.periodo)}"></label>
+        <div class="row2">
+          <label class="f">Período<input type="text" data-k="periodo" value="${C.esc(cfg.periodo)}" placeholder="${C.esc(m.periodo)}"></label>
+          <label class="f">Nome nos textos<input type="text" data-k="nomeTexto" value="${C.esc(cfg.nomeTexto)}" placeholder="${C.esc(m.nomeTexto)}"></label>
+        </div>
         <label class="f">Campanhas (separe por •)<input type="text" data-k="campanhasTxt" value="${C.esc(cfg.campanhasTxt)}" placeholder="${C.esc(m.campanhas.join(' • '))}"></label>
       </div></details>
-      <details open><summary>Campanhas e grupos</summary><div>
+
+      <details open><summary>Textos<span class="hint">editáveis</span></summary><div class="pad">
+        ${[['resumo', 'Resumo do período'], ['bom', 'O que está bom'], ['melhorar', 'O que pode melhorar'], ['notaTabela', 'Nota abaixo da tabela'], ['nota', 'Nota de rodapé']].map(([k, l]) => `<label class="f">${l}<textarea data-t="${k}" rows="${k.startsWith('nota') ? 2 : 4}">${C.esc(c.texts[k] || '')}</textarea></label>`).join('')}
+        <button class="btn" data-act="regen" type="button">Regenerar textos automáticos</button>
+      </div></details>
+
+      <details${c.attRaw ? ' open' : ''}><summary>Atendimento<span class="hint">opcional</span></summary><div class="pad">
+        <span class="small">Cole o texto bruto do grupo (ou a conversa exportada do WhatsApp) e eu procuro os relatórios diários. Também aceita uma tabela com os dias nas colunas.</span>
+        <textarea data-att rows="7" placeholder="Cole aqui. Exemplo:&#10;Relatório diário 21/10&#10;Pacientes: 22&#10;Consultas: 4&#10;Procedimento agendado: 1">${C.esc(c.attRaw)}</textarea>
+        <label class="f">Ou importe um arquivo (.txt do WhatsApp, .csv, .xlsx)<input type="file" data-attfile accept=".txt,.md,.csv,.xlsx,.xls"></label>
+        <div class="row2">
+          <label class="f">Considerar de<input type="date" data-attini value="${C.esc(c.attRange.ini)}"></label>
+          <label class="f">até<input type="date" data-attfim value="${C.esc(c.attRange.fim)}"></label>
+        </div>
+        <span class="small" id="attRangeHint"></span>
+        <div id="attLayout">${attLayoutHtml(c)}</div>
+      </div></details>
+
+      <details><summary>Campanhas e grupos<span class="hint">${c.parsed.rows.length} campanhas</span></summary><div class="pad">
         <span class="small">Campanhas com o mesmo nome de grupo somam numa linha da tabela.</span>
-        <table class="t"><tr><th>Campanha</th><th>Result.</th><th>Gasto</th><th>Grupo</th></tr>${rowsHtml}</table>
-        <span class="small">Tipo de resultado de cada indicador:</span>
+        <div class="tw" style="max-height:300px"><table class="t"><tr><th>Campanha</th><th class="num">Result.</th><th class="num">Gasto</th><th>Grupo</th></tr>${rowsHtml}</table></div>
+        <span class="small">Como cada indicador conta:</span>
         ${kinds.map(k => { const info = C.indicatorByKind(k); return `<label class="f">${C.esc(info.label || k)}${roleSel(k, cfg.roles[k] || info.role)}</label>`; }).join('')}
       </div></details>
-      <details><summary>Opções</summary><div>
+
+      <details><summary>Opções</summary><div class="pad">
         <label class="f">Mostrar tipo (Mensagens/Formulário) na tabela<select data-k="mostrarTipo">${opt(cfg.mostrarTipo, [['auto', 'Automático'], ['sim', 'Sempre'], ['nao', 'Nunca']])}</select></label>
         <label class="f">4º cartão<select data-k="fourth">${opt(cfg.fourth, [['auto', 'Automático'], ['total', 'Total confirmado'], ['outros', 'Outros resultados'], ['atendimento', 'Atendimento']])}</select></label>
         <label class="f">Nome do resultado<select data-k="unit">${opt(cfg.unit, [['auto', 'Automático'], ['conversas', 'Conversas'], ['leads', 'Leads'], ['resultados', 'Resultados'], ['agendamentos', 'Agendamentos']])}</select></label>
-      </div></details>
-      <details open><summary>Textos</summary><div>
-        ${[['resumo', 'Resumo do período'], ['bom', 'O que está bom'], ['melhorar', 'O que pode melhorar'], ['notaTabela', 'Nota abaixo da tabela'], ['nota', 'Nota de rodapé']].map(([k, l]) => `<label class="f">${l}<textarea data-t="${k}" rows="${k.startsWith('nota') ? 2 : 4}">${C.esc(c.texts[k] || '')}</textarea></label>`).join('')}
-        <button class="btn" data-act="regen">Regenerar textos automáticos</button>
-      </div></details>
-      <details${c.attRaw ? ' open' : ''}><summary>Atendimento (opcional)</summary><div>
-        <span class="small">Cole da planilha: 1ª linha = dias (19/10, 20/10...), 1ª coluna = indicador (Pacientes, Consultas, Agendamentos...). Ou importe um arquivo.</span>
-        <textarea data-att rows="6" placeholder="Dia&#9;19/10&#9;20/10&#9;21/10&#10;Pacientes&#9;13&#9;17&#9;22&#10;Consultas&#9;3&#9;2&#9;4">${C.esc(c.attRaw)}</textarea>
-        <input type="file" data-attfile accept=".xlsx,.xls,.csv">
-        <div id="attLayout">${attLayoutHtml(c)}</div>
       </div></details>`;
+    rangeHint(c);
+  }
+
+  function rangeHint(c) {
+    const el = $('#attRangeHint'); if (!el) return;
+    const r = rangeOf(c);
+    el.textContent = `Sem datas preenchidas, vale o período do relatório (${r.ini ? r.ini.split('-').reverse().slice(0, 2).join('/') : '?'} a ${r.fim ? r.fim.split('-').reverse().slice(0, 2).join('/') : '?'}).`;
   }
 
   function attLayoutHtml(c) {
-    const a = c.attParsed; if (!a) return c.attRaw ? '<span class="small">Não consegui ler. Precisa de pelo menos 2 linhas.</span>' : '';
-    const L = c.attLayout, m = c.model;
+    const a = c.attParsed;
+    if (!c.attRaw.trim()) return '';
+    if (!a) return '<ul class="avisos warn"><li>Não achei relatórios diários nem tabela nesse texto. Procuro mensagens com "Relatório diário" seguidas de linhas como "Pacientes: 12".</li></ul>';
+    const avisos = (a.avisos || []).length ? `<ul class="avisos${a.rows.length ? '' : ' warn'}">${a.avisos.map(v => `<li>${C.esc(v)}</li>`).join('')}</ul>` : '';
+    if (!a.rows.length) return avisos;
+    const L = c.attLayout;
     const inCard = i => (L.card ? L.card.includes(i) : i < 3), inTab = i => (L.tabela ? L.tabela.includes(i) : true);
     const opts = sel => `<option value="-1">(nenhum)</option>` + a.rows.map((r, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${C.esc(r.label)}</option>`).join('');
-    return `<table class="t"><tr><th>Indicador</th><th>Total</th><th>Cartão</th><th>Tabela</th></tr>${a.rows.map((r, i) => `<tr><td>${C.esc(r.label)}</td><td>${C.nf(r.total)}</td><td><input type="checkbox" data-card="${i}"${inCard(i) ? ' checked' : ''}></td><td><input type="checkbox" data-tab="${i}"${inTab(i) ? ' checked' : ''}></td></tr>`).join('')}</table>
+    const grade = `<div class="tw"><table class="t grid"><tr><th>Lido</th>${a.days.map(d => `<th>${C.esc(d)}</th>`).join('')}<th>Total</th></tr>${a.rows.map(r => `<tr><td>${C.esc(r.label)}</td>${r.values.map(v => `<td>${C.nf(v)}</td>`).join('')}<td><b>${C.nf(r.total)}</b></td></tr>`).join('')}</table></div>`;
+    const uso = `<div class="tw"><table class="t"><tr><th>Indicador</th><th>No cartão</th><th>Na tabela</th></tr>${a.rows.map((r, i) => `<tr><td>${C.esc(r.label)}</td><td><input type="checkbox" data-card="${i}"${inCard(i) ? ' checked' : ''}></td><td><input type="checkbox" data-tab="${i}"${inTab(i) ? ' checked' : ''}></td></tr>`).join('')}</table></div>`;
+    return `${avisos}${grade}${uso}
       <div class="row2"><label class="f">Taxa: numerador<select data-ratio="num">${opts(L.ratio.num)}</select></label><label class="f">Taxa: denominador<select data-ratio="den">${opts(L.ratio.den)}</select></label></div>
       <label class="f">Nome da taxa<input type="text" data-ratio="label" value="${C.esc(L.ratio.label)}" placeholder="Consultas / pacientes"></label>
-      <label class="f">Período do atendimento<input type="text" data-attper value="${C.esc(L.periodo)}" placeholder="${C.esc(a.periodo)}"></label>`;
+      <label class="f">Período mostrado no relatório<input type="text" data-attper value="${C.esc(L.periodo)}" placeholder="${C.esc(a.periodo)}"></label>`;
   }
 
   /* ---------- eventos do editor ---------- */
   let timer;
-  const later = fn => { clearTimeout(timer); timer = setTimeout(fn, 120); };
+  const later = fn => { clearTimeout(timer); timer = setTimeout(fn, 150); };
   function update(structural) {
     const c = cur(); recompute(c); syncTexts(c); draw();
-    if (structural) $('#attLayout') && ($('#attLayout').innerHTML = attLayoutHtml(c));
+    if (structural && $('#attLayout')) $('#attLayout').innerHTML = attLayoutHtml(c);
     if (document.activeElement && document.activeElement.dataset.k === 'nome') renderClients();
+    else if (structural) renderClients();
   }
   function syncTexts(c) {
     editor.querySelectorAll('[data-t]').forEach(t => { if (t !== document.activeElement) t.value = c.texts[t.dataset.t] || ''; });
@@ -141,6 +182,7 @@
       i.placeholder = { nomeTexto: c.model.nomeTexto, periodo: c.model.periodo, campanhasTxt: c.model.campanhas.join(' • ') }[i.dataset.k];
     });
   }
+  const resetAtt = c => { c.attLayout.card = c.attLayout.tabela = null; };
 
   editor.addEventListener('input', e => {
     const c = cur(), t = e.target; if (!c) return;
@@ -150,7 +192,7 @@
       if (t.value.trim() && t.value.trim().toUpperCase() !== guess) c.cfg.groups[t.dataset.g] = t.value.trim(); else delete c.cfg.groups[t.dataset.g];
       later(() => update());
     } else if (t.dataset.t) { c.texts[t.dataset.t] = t.value; c.edited[t.dataset.t] = true; later(draw); }
-    else if (t.dataset.att !== undefined) { c.attRaw = t.value; c.attLayout.card = c.attLayout.tabela = null; later(() => update(true)); }
+    else if (t.dataset.att !== undefined) { c.attRaw = t.value; resetAtt(c); later(() => update(true)); }
     else if (t.dataset.attper !== undefined) { c.attLayout.periodo = t.value; later(() => update()); }
     else if (t.dataset.ratio === 'label') { c.attLayout.ratio.label = t.value; later(() => update()); }
   });
@@ -165,11 +207,16 @@
       c.attLayout[key] = t.checked ? [...new Set([...base, i])].sort((a, b) => a - b) : base.filter(x => x !== i);
       update();
     } else if (t.dataset.ratio === 'num' || t.dataset.ratio === 'den') { c.attLayout.ratio[t.dataset.ratio] = +t.value; update(); }
+    else if (t.dataset.attini !== undefined) { c.attRange.ini = t.value; resetAtt(c); update(true); }
+    else if (t.dataset.attfim !== undefined) { c.attRange.fim = t.value; resetAtt(c); update(true); }
     else if (t.dataset.attfile !== undefined && t.files[0]) {
-      const wb = XLSX.read(/\.csv$/i.test(t.files[0].name) ? await t.files[0].text() : await t.files[0].arrayBuffer(), { type: /\.csv$/i.test(t.files[0].name) ? 'string' : 'array' });
-      c.attRaw = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '\t' });
-      c.attLayout.card = c.attLayout.tabela = null;
-      recompute(c); renderEditor(); draw();
+      const f = t.files[0];
+      if (/\.(xlsx|xls)$/i.test(f.name)) {
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+        c.attRaw = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '\t' });
+      } else c.attRaw = await f.text();
+      resetAtt(c);
+      recompute(c); renderEditor(); renderClients(); draw();
     }
   });
   editor.addEventListener('click', e => {
@@ -218,10 +265,12 @@
     } catch (e) { setStatus('Não deu para copiar: ' + e.message, true); }
   };
   $('#zip').onclick = async () => {
-    setStatus('Gerando ZIP...');
     try {
       const zip = new JSZip();
-      for (const c of state.clients) { const u = await toPng(c, ratio()); zip.file(fileNameOf(c), u.split(',')[1], { base64: true }); }
+      for (let k = 0; k < state.clients.length; k++) {
+        setStatus(`Gerando imagens ${k + 1}/${state.clients.length}...`);
+        const u = await toPng(state.clients[k], ratio()); zip.file(fileNameOf(state.clients[k]), u.split(',')[1], { base64: true });
+      }
       download(URL.createObjectURL(await zip.generateAsync({ type: 'blob' })), `relatorios-${new Date().toISOString().slice(0, 10)}.zip`);
       setStatus(`${state.clients.length} relatórios no ZIP.`);
     } catch (e) { setStatus('Erro: ' + e.message, true); }
@@ -250,29 +299,27 @@
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => addFiles([...e.dataTransfer.files]));
   window.addEventListener('dragover', e => e.preventDefault());
-  window.addEventListener('drop', e => { e.preventDefault(); if (e.target !== drop && !drop.contains(e.target)) addFiles([...e.dataTransfer.files]); });
+  window.addEventListener('drop', e => { e.preventDefault(); if (e.target !== drop && !drop.contains(e.target) && e.dataTransfer.files.length && !e.target.closest('textarea,input')) addFiles([...e.dataTransfer.files]); });
 
   fetch('/api/config').then(r => r.json()).then(j => { state.saved = j; }).catch(() => {
     try { state.saved = JSON.parse(localStorage.getItem('hurtz-rel-cfg') || '{}'); } catch { }
   });
 
   /* ---------- Meta + Drive (só na versão hospedada, atrás de login) ---------- */
-  const meta = { clientes: [] };
   const segunda = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7); return d; };
   const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
   async function initMeta() {
     let r;
     try { r = await fetch('/api/clientes'); } catch { return; }
-    if (r.status === 401) { $('#login').hidden = false; return; }
+    if (r.status === 401) { $('#login').hidden = false; $('#senha').focus(); return; }
     if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return; // servidor local, sem integração
     $('#login').hidden = true;
     meta.clientes = await r.json();
     const ini = segunda(), fim = new Date(ini); fim.setDate(fim.getDate() + 6);
-    $('#metaPanel').hidden = false;
-    $('#drive').hidden = false; $('#driveTodosL').hidden = false;
+    $('#metaPanel').hidden = false; $('#driveGrp').hidden = false;
     $('#mIni').value = iso(ini); $('#mFim').value = iso(fim);
-    $('#mLista').innerHTML = meta.clientes.map(c => `<label><input type="checkbox" data-slug="${c.slug}" checked> ${C.esc(c.nome)}${c.atendimento ? ' <em>(atendimento)</em>' : ''}</label>`).join('');
+    $('#mLista').innerHTML = meta.clientes.map(c => `<label title="${C.esc(c.nome)}"><input type="checkbox" data-slug="${c.slug}" checked><span class="nm">${C.esc(curto(c.nome))}</span>${c.atendimento ? '<i class="badge" title="recebe dados de atendimento">A</i>' : ''}</label>`).join('');
   }
   $('#loginBtn').onclick = async () => {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: $('#senha').value }) });
@@ -287,7 +334,7 @@
     if (!ini || !fim || ini > fim) return setStatus('Confira as datas.', true);
     if (!slugs.length) return setStatus('Marque ao menos um cliente.', true);
     $('#mPuxar').disabled = true;
-    const falhas = [];
+    const falhas = []; let ok = 0;
     for (let k = 0; k < slugs.length; k++) {
       setStatus(`Puxando da Meta ${k + 1}/${slugs.length}...`);
       try {
@@ -295,13 +342,19 @@
         if (r.status === 401) { $('#login').hidden = false; throw new Error('sessão expirada, entre de novo'); }
         const j = await r.json();
         if (j.erro) throw new Error(j.erro);
-        addClient(C.parseRows(j.rows), slugs[k] + '.meta', j.nome, slugs[k]);
-      } catch (e) { falhas.push(`${slugs[k]}: ${e.message}`); }
+        const antes = state.clients.findIndex(c => c.slug === slugs[k]);
+        if (antes >= 0 && !j.rows.length) state.clients.splice(antes, 1); // semana sem gasto: tira o relatório antigo
+        addClient(C.parseRows(j.rows), slugs[k] + '.meta', j.nome, slugs[k]); ok++;
+      } catch (e) {
+        const nome = (meta.clientes.find(x => x.slug === slugs[k]) || {}).nome || slugs[k];
+        falhas.push(`${curto(nome)}: ${e.message.replace('Nenhuma campanha com gasto nesse período.', 'sem gasto no período')}`);
+      }
     }
     $('#mPuxar').disabled = false;
+    state.cur = Math.min(Math.max(state.cur, 0), state.clients.length - 1);
     renderClients();
-    if (state.clients.length) select(Math.max(0, state.cur));
-    setStatus(falhas.length ? `Pronto, com ${falhas.length} problema(s): ${falhas.join(' | ')}` : `${slugs.length} cliente(s) puxados. Confira e baixe ou envie ao Drive.`, !!falhas.length);
+    if (state.clients.length) select(state.cur);
+    setStatus(`${ok} relatório(s) montados.${falhas.length ? ' Não vieram: ' + falhas.join('; ') + '.' : ''} Confira e baixe ou envie ao Drive.`, false);
   };
 
   async function enviarDrive(c) {
@@ -330,7 +383,8 @@
     apply(i, o) {
       const c = state.clients[i]; o = o || {};
       if (o.cfg) Object.assign(c.cfg, o.cfg);
-      if (o.attRaw != null) { c.attRaw = o.attRaw; c.attLayout.card = c.attLayout.tabela = null; }
+      if (o.attRaw != null) { c.attRaw = o.attRaw; resetAtt(c); }
+      if (o.attRange) Object.assign(c.attRange, o.attRange);
       if (o.attLayout) Object.assign(c.attLayout, o.attLayout);
       recompute(c);
       if (o.texts) { Object.assign(c.texts, o.texts); Object.keys(o.texts).forEach(k => { c.edited[k] = true; }); }
