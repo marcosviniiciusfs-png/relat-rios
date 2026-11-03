@@ -54,7 +54,7 @@
   const COLS = {
     start: ['inicio dos relatorios'], end: ['encerramento dos relatorios'],
     name: ['nome da campanha', 'campanha'], adset: ['nome do conjunto de anuncios'], ad: ['nome do anuncio'],
-    status: ['veiculacao da campanha', 'veiculacao'],
+    status: ['veiculacao da campanha', 'veiculacao do conjunto de anuncios', 'veiculacao do anuncio', 'veiculacao'],
     results: ['resultados'], indicator: ['indicador de resultados'], cost: ['custo por resultados'],
     spend: ['valor gasto (brl)', 'valor usado (brl)', 'valor gasto'],
     impressions: ['impressoes'], reach: ['alcance'], linkClicks: ['cliques no link'],
@@ -75,6 +75,7 @@
   function parseRows(jsonRows) {
     if (!jsonRows.length) return { rows: [], start: '', end: '', level: 'campanha' };
     const h = mapHeaders(Object.keys(jsonRows[0]));
+    if (!h.name) h.name = h.adset || h.ad; // export por conjunto ou anúncio: usa o nome disponível
     if (!h.name || !h.spend) throw new Error('Planilha sem colunas "Nome da campanha" e "Valor gasto". É o export do Gerenciador de Anúncios?');
     const rows = [];
     let start = '', end = '';
