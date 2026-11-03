@@ -14,6 +14,8 @@
   <ol class="steps" aria-label="Etapas">
     <li><b>1</b> Dados</li><li><b>2</b> Conferir</li><li><b>3</b> Exportar</li>
   </ol>
+  <span class="modo" id="modo" hidden></span>
+  <button class="btn ghost" id="entrar" type="button" hidden>Entrar com senha</button>
 </header>
 
 <main class="layout">
@@ -76,7 +78,10 @@
     <p>Digite a senha para continuar.</p>
     <input type="password" id="senha" autocomplete="current-password" placeholder="Senha">
     <button class="btn primary wide" id="loginBtn" type="button">Entrar</button>
-    <span id="loginErr" class="err"></span></div>
+    <span id="loginErr" class="err"></span>
+    <div class="ou"><span>ou</span></div>
+    <button class="btn wide" id="convidado" type="button">Entrar sem senha</button>
+    <p class="small">Sem senha você monta relatórios a partir de planilhas. Não tem acesso às contas da Meta nem ao Drive.</p></div>
 </div>
 <div id="export" style="position:fixed;left:-10000px;top:0"></div>
 

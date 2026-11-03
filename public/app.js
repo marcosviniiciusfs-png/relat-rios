@@ -309,12 +309,27 @@
   const segunda = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7); return d; };
   const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
+  /* modo convidado: sem senha, só planilhas. O servidor continua bloqueando /api sem sessão. */
+  const convidado = () => { try { return sessionStorage.getItem('rel-convidado') === '1'; } catch { return false; } };
+  function modoConvidado(on) {
+    try { on ? sessionStorage.setItem('rel-convidado', '1') : sessionStorage.removeItem('rel-convidado'); } catch { }
+    $('#login').hidden = true;
+    $('#metaPanel').hidden = true; $('#driveGrp').hidden = true;
+    $('#modo').hidden = false; $('#modo').textContent = 'Modo convidado: só planilhas';
+    $('#entrar').hidden = false;
+  }
+  $('#convidado').onclick = () => modoConvidado(true);
+  $('#entrar').onclick = () => { try { sessionStorage.removeItem('rel-convidado'); } catch { } $('#login').hidden = false; $('#senha').focus(); };
+  $('#login').addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modo').hidden) $('#login').hidden = true; });
+
   async function initMeta() {
     let r;
     try { r = await fetch('/api/clientes'); } catch { return; }
-    if (r.status === 401) { $('#login').hidden = false; $('#senha').focus(); return; }
+    if (r.status === 401) { if (convidado()) modoConvidado(true); else { $('#login').hidden = false; $('#senha').focus(); } return; }
     if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return; // servidor local, sem integração
-    $('#login').hidden = true;
+    try { sessionStorage.removeItem('rel-convidado'); } catch { }
+    $('#login').hidden = true; $('#entrar').hidden = true;
+    $('#modo').hidden = false; $('#modo').textContent = 'Acesso completo';
     meta.clientes = await r.json();
     const ini = segunda(), fim = new Date(ini); fim.setDate(fim.getDate() + 6);
     $('#metaPanel').hidden = false; $('#driveGrp').hidden = false;

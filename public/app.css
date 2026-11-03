@@ -103,3 +103,10 @@ table.t input[type=checkbox]{width:16px;height:16px}
   .top{gap:12px;padding:0 14px}.steps{display:none}
   .stagewrap{max-height:none}
 }
+
+.top .modo{margin-left:auto;font-size:12px;color:var(--muted);background:var(--bg);border-radius:99px;padding:3px 10px}
+.top .modo + .btn{padding:5px 12px;font-size:13px}
+.top .btn.ghost{color:var(--ink);border-color:var(--line)}
+.ou{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+.ou::before,.ou::after{content:'';flex:1;height:1px;background:var(--line)}
+.loginbox .small{margin:0}
