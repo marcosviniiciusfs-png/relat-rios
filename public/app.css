@@ -41,9 +41,9 @@ table.t input{padding:3px 6px}
 .stagewrap{width:100%;aspect-ratio:16/9;background:#fff;border:1px solid #dfe5f0;border-radius:6px;overflow:hidden;position:relative}
 .stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
 
-.meta{display:flex;flex-direction:column;gap:8px;margin:14px 0;padding:10px;border:1px solid #dfe5f0;border-radius:10px;background:#f7faf3}
-.meta[hidden]{display:none}
-.meta input[type=date]{font:inherit;padding:4px 6px;border:1px solid #c9d3e8;border-radius:6px;width:100%}
+.mpanel{display:flex;flex-direction:column;gap:8px;margin:14px 0;padding:10px;border:1px solid #dfe5f0;border-radius:10px;background:#f7faf3}
+.mpanel[hidden]{display:none}
+.mpanel input[type=date]{font:inherit;padding:4px 6px;border:1px solid #c9d3e8;border-radius:6px;width:100%}
 .mlista{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:3px;font-size:12px}
 .mlista label{display:flex;gap:6px;align-items:center}
 .mlista em{color:#6f7fa6;font-style:normal;font-size:11px}
