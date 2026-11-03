@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório Semanal Hurtz</title>
+<link rel="stylesheet" href="report.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <img src="logo-hurtz-vermelho.png" alt="Hurtz" height="34">
+  <h1>Relatório Semanal</h1>
+  <span class="hint">Arraste o export do Gerenciador de Anúncios (.xlsx ou .csv). Um arquivo por cliente.</span>
+</header>
+<main class="layout">
+  <aside class="side">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+      <strong>Solte as planilhas aqui</strong><span>ou clique para escolher (pode vários)</span>
+    </label>
+    <ul id="clients" class="clients"></ul>
+    <div class="bulk">
+      <label>Resolução
+        <select id="scale"><option value="1">1920 x 1080</option><option value="2">3840 x 2160</option></select>
+      </label>
+      <button id="zip" class="btn" disabled>Baixar todos (.zip)</button>
+    </div>
+  </aside>
+
+  <section class="editor" id="editor">
+    <p class="empty">Nenhum cliente carregado ainda.</p>
+  </section>
+
+  <section class="preview">
+    <div class="actions">
+      <button id="png" class="btn primary" disabled>Baixar PNG</button>
+      <button id="copy" class="btn" disabled>Copiar imagem</button>
+      <button id="save" class="btn" disabled title="Guarda grupos, papéis e opções deste cliente para as próximas semanas">Salvar config do cliente</button>
+      <span id="status" class="status"></span>
+    </div>
+    <div class="stagewrap" id="stagewrap"><div class="stage" id="stage"></div></div>
+  </section>
+</main>
+<div id="export" style="position:fixed;left:-10000px;top:0"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/html-to-image.js"></script>
+<script src="core.js"></script>
+<script src="report.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
